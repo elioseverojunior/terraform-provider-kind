@@ -1,0 +1,3 @@
+provider "kind" {}
+
+provider "shell" {}

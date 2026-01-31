@@ -5,25 +5,25 @@ import (
 )
 
 type ClusterResourceModel struct {
-	ID                              types.String    `tfsdk:"id"`
-	Name                            types.String    `tfsdk:"name"`
-	NodeImage                       types.String    `tfsdk:"node_image"`
-	WaitForReady                    types.Int64     `tfsdk:"wait_for_ready"`
-	WaitForNodesReady               types.Bool      `tfsdk:"wait_for_nodes_ready"`
-	Networking                      *NetworkingModel `tfsdk:"networking"`
-	FeatureGates                    types.Map       `tfsdk:"feature_gates"`
-	RuntimeConfig                   types.Map       `tfsdk:"runtime_config"`
-	KubeadmConfigPatches            types.List      `tfsdk:"kubeadm_config_patches"`
+	ID                              types.String         `tfsdk:"id"`
+	Name                            types.String         `tfsdk:"name"`
+	NodeImage                       types.String         `tfsdk:"node_image"`
+	WaitForReady                    types.Int64          `tfsdk:"wait_for_ready"`
+	WaitForNodesReady               types.Bool           `tfsdk:"wait_for_nodes_ready"`
+	Networking                      *NetworkingModel     `tfsdk:"networking"`
+	FeatureGates                    types.Map            `tfsdk:"feature_gates"`
+	RuntimeConfig                   types.Map            `tfsdk:"runtime_config"`
+	KubeadmConfigPatches            types.List           `tfsdk:"kubeadm_config_patches"`
 	KubeadmConfigPatchesJSON6902    []PatchJSON6902Model `tfsdk:"kubeadm_config_patches_json6902"`
-	ContainerdConfigPatches         types.List      `tfsdk:"containerd_config_patches"`
-	ContainerdConfigPatchesJSON6902 types.List      `tfsdk:"containerd_config_patches_json6902"`
-	Kubeconfig                      types.String    `tfsdk:"kubeconfig"`
-	KubeconfigPath                  types.String    `tfsdk:"kubeconfig_path"`
-	ClientCertificate               types.String    `tfsdk:"client_certificate"`
-	ClientKey                       types.String    `tfsdk:"client_key"`
-	ClusterCaCertificate            types.String    `tfsdk:"cluster_ca_certificate"`
-	Endpoint                        types.String    `tfsdk:"endpoint"`
-	Nodes                           []NodeModel     `tfsdk:"node"`
+	ContainerdConfigPatches         types.List           `tfsdk:"containerd_config_patches"`
+	ContainerdConfigPatchesJSON6902 types.List           `tfsdk:"containerd_config_patches_json6902"`
+	Kubeconfig                      types.String         `tfsdk:"kubeconfig"`
+	KubeconfigPath                  types.String         `tfsdk:"kubeconfig_path"`
+	ClientCertificate               types.String         `tfsdk:"client_certificate"`
+	ClientKey                       types.String         `tfsdk:"client_key"`
+	ClusterCaCertificate            types.String         `tfsdk:"cluster_ca_certificate"`
+	Endpoint                        types.String         `tfsdk:"endpoint"`
+	Nodes                           []NodeModel          `tfsdk:"node"`
 }
 
 type NetworkingModel struct {

@@ -4,8 +4,8 @@ go 1.25.0
 
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.17.0
-	k8s.io/api v0.35.0
-	k8s.io/apimachinery v0.35.0
+	k8s.io/api v0.35.1
+	k8s.io/apimachinery v0.35.1
 	k8s.io/client-go v0.35.0
 	sigs.k8s.io/kind v0.31.0
 	sigs.k8s.io/yaml v1.6.0

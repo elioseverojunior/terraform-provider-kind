@@ -1,0 +1,120 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior <elioseverojunior@gmail.com>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# Verifies every pull request: build, format, lint, unit tests, and that the
+# generated documentation is in step with the schema.
+name: Test
+
+on:
+  pull_request:
+    paths-ignore:
+      - "*.md"
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go build ./...
+      - run: go vet ./...
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::These files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Run tests with coverage
+        run: go test ./... -timeout 120s -coverprofile=coverage.out
+      - name: Report coverage
+        run: go tool cover -func=coverage.out | tail -1
+
+  docs:
+    name: Documentation is generated
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - name: Regenerate documentation
+        run: make generate
+      - name: Fail if docs/ is stale
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::docs/ is out of date. Run 'make generate' and commit the result."
+            exit 1
+          fi
+
+  # Acceptance tests create real clusters, so they are opt-in: run them from the
+  # Actions tab, or by adding the 'acceptance-tests' label to a pull request.
+  acceptance:
+    name: Acceptance tests
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'acceptance-tests')
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - name: Run acceptance tests
+        env:
+          TF_ACC: "1"
+        run: go test ./internal/provider/ -v -timeout 60m
+      - name: Clean up leftover clusters
+        if: always()
+        run: docker ps -aq --filter "name=^kind-" | xargs -r docker rm -f

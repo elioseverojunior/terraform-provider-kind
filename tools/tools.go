@@ -1,22 +1,23 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior <elioseverojunior@gmail.com>
+//
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 //go:build generate
 
+// Package tools pins the versions of the code generators this project uses, so
+// contributors do not need them installed globally.
+//
+// Licence headers are NOT generated: this project is dual-licensed under
+// MIT OR Apache-2.0, and hashicorp/copywrite only accepts a single SPDX
+// identifier, not an expression. REUSE.toml carries the declaration instead.
 package tools
 
 import (
-	_ "github.com/hashicorp/copywrite"
 	_ "github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs"
 )
 
-// Generate copyright headers
-//go:generate go run github.com/hashicorp/copywrite headers -d .. --config ../.copywrite.hcl
-
-// Format Terraform code for use in documentation.
-// If you do not have Terraform installed, you can remove the formatting command, but it is suggested
-// to ensure the documentation is formatted properly.
+// Format the Terraform snippets that get embedded into the generated docs.
 //go:generate terraform fmt -recursive ../examples/
 
-// Generate documentation.
-//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-dir .. -provider-name scaffolding
+// Regenerate docs/ from the provider schema, templates/ and examples/.
+//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-dir .. -provider-name kind

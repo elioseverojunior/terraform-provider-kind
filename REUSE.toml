@@ -1,0 +1,15 @@
+# REUSE compliance configuration
+# See https://reuse.software/spec-3.3/ for format specification
+
+version = 1
+
+[[annotations]]
+SPDX-FileCopyrightText = "2026 Elio Severo Junior <elioseverojunior@gmail.com>"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
+path = ["**"]
+precedence = "aggregate"
+
+[tool.comply]
+# Custom comply settings
+ignore = ["**/target/**", "**/*.lock", "**/*.md.tmpl", "**/go.mod", "**/go.sum", "terraform-registry-manifest.json"]
+

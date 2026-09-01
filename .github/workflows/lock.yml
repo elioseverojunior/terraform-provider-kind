@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior <elioseverojunior@gmail.com>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 # DO NOT EDIT - This GitHub Workflow is managed by automation
 # https://github.com/hashicorp/terraform-devex-repos
 name: 'Lock Threads'

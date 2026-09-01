@@ -52,7 +52,7 @@ terraform {
   required_providers {
     kind = {
       source  = "elioseverojunior/kind"
-      version = "~> 0.1"
+      version = ">= 0.0.3"
     }
   }
 }

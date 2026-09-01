@@ -52,8 +52,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Licence headers were being embedded inside the Terraform code samples on the
   published Registry pages.
 
-## [0.1.0]
+## [0.0.3] and earlier
 
-### Added
-
-- Initial release: `kind_cluster` resource and `kind_clusters` data source.
+No changelog was kept for these releases. They introduced the `kind_cluster`
+resource and the `kind_clusters` data source.

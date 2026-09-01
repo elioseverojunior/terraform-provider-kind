@@ -10,7 +10,13 @@ HOSTNAME  := registry.terraform.io
 NAMESPACE := elioseverojunior
 NAME      := kind
 BINARY    := terraform-provider-$(NAME)
-VERSION   := 0.1.0
+# Version for the local plugin install path. Derived from the most recent git
+# tag so `make install` lands in the directory Terraform resolves for a released
+# build of the same version. Hardcoding it drifts the moment a tag is pushed --
+# it previously read 0.1.0 while the published tags were v0.0.x.
+# Override for a one-off build: make install VERSION=1.2.3
+GIT_TAG   := $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
+VERSION   ?= $(if $(GIT_TAG),$(GIT_TAG),0.0.0)
 OS_ARCH   := $(shell go env GOOS)_$(shell go env GOARCH)
 
 PLUGIN_DIR := $(HOME)/.terraform.d/plugins/$(HOSTNAME)/$(NAMESPACE)/$(NAME)/$(VERSION)/$(OS_ARCH)
@@ -20,11 +26,14 @@ PLUGIN_DIR := $(HOME)/.terraform.d/plugins/$(HOSTNAME)/$(NAMESPACE)/$(NAME)/$(VE
 TOOLS := cd tools && go run
 
 .DEFAULT_GOAL := help
-.PHONY: help build install clean fmt vet lint test test-coverage testacc generate docs tidy check all
+.PHONY: help version build install clean fmt vet lint test test-coverage testacc generate docs tidy check all
 
 help: ## Show this help.
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+
+version: ## Print the version used for the local install path.
+	@echo $(VERSION)
 
 build: ## Compile the provider binary.
 	go build -o $(BINARY)

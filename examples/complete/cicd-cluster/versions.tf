@@ -4,7 +4,7 @@ terraform {
   required_providers {
     kind = {
       source  = "elioseverojunior/kind"
-      version = ">= 0.1.0"
+      version = ">= 0.0.3"
     }
     shell = {
       source  = "scottwinkler/shell"

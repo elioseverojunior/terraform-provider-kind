@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior <elioseverojunior@gmail.com>
+//
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 package provider
 
 import (
@@ -7,13 +11,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"sigs.k8s.io/kind/pkg/cluster"
 )
 
 var _ datasource.DataSource = &ClustersDataSource{}
 
 type ClustersDataSource struct {
-	provider *cluster.Provider
+	provider clusterManager
 }
 
 func NewClustersDataSource() datasource.DataSource {
@@ -46,11 +49,11 @@ func (d *ClustersDataSource) Configure(_ context.Context, req datasource.Configu
 		return
 	}
 
-	provider, ok := req.ProviderData.(*cluster.Provider)
+	provider, ok := req.ProviderData.(clusterManager)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *cluster.Provider, got: %T", req.ProviderData),
+			fmt.Sprintf("Expected a kind cluster provider, got: %T", req.ProviderData),
 		)
 		return
 	}

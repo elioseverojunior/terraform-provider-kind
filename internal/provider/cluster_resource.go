@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 Elio Severo Junior <elioseverojunior@gmail.com>
+//
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 package provider
 
 import (
@@ -5,8 +9,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -20,6 +27,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,8 +43,13 @@ var (
 	_ resource.ResourceWithImportState = &ClusterResource{}
 )
 
+// validClusterNameRE mirrors validNameRE in sigs.k8s.io/kind's internal config
+// validation. Keeping the provider's rule identical to kind's means a name that
+// passes `terraform plan` cannot be rejected later during cluster creation.
+var validClusterNameRE = regexp.MustCompile(`^[a-z0-9.-]+$`)
+
 type ClusterResource struct {
-	provider *cluster.Provider
+	provider clusterManager
 }
 
 func NewClusterResource() resource.Resource {
@@ -63,27 +76,16 @@ func cleanupStaleLockFile() {
 	}
 }
 
-// waitForAllNodesReady waits for all nodes in the cluster to be in Ready state.
-// It uses the kubeconfig to connect to the cluster and polls node status.
+// defaultNodeReadyPollInterval is how often node readiness is re-checked while
+// waiting for a freshly created cluster to settle.
+const defaultNodeReadyPollInterval = 5 * time.Second
+
+// waitForAllNodesReady blocks until every node in the cluster described by
+// kubeconfigContent reports Ready, or until timeout elapses.
 func waitForAllNodesReady(ctx context.Context, kubeconfigContent string, timeout time.Duration) error {
-	// Create a temporary kubeconfig file for the client
-	tmpFile, err := os.CreateTemp("", "kubeconfig-*.yaml")
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfigContent))
 	if err != nil {
-		return fmt.Errorf("failed to create temp kubeconfig: %w", err)
-	}
-	defer os.Remove(tmpFile.Name())
-
-	if _, err := tmpFile.WriteString(kubeconfigContent); err != nil {
-		return fmt.Errorf("failed to write kubeconfig: %w", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		return fmt.Errorf("failed to close kubeconfig file: %w", err)
-	}
-
-	// Build kubernetes client from kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", tmpFile.Name())
-	if err != nil {
-		return fmt.Errorf("failed to build kubeconfig: %w", err)
+		return fmt.Errorf("failed to parse kubeconfig: %w", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
@@ -91,52 +93,75 @@ func waitForAllNodesReady(ctx context.Context, kubeconfigContent string, timeout
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	// Poll until all nodes are ready or timeout
-	ticker := time.NewTicker(5 * time.Second)
+	return waitForNodesReady(ctx, clientset, timeout, defaultNodeReadyPollInterval)
+}
+
+// waitForNodesReady polls client every pollInterval until all nodes are Ready.
+//
+// The client and interval are parameters rather than constants so the polling
+// behaviour can be exercised against a fake clientset without a real cluster.
+func waitForNodesReady(ctx context.Context, client kubernetes.Interface, timeout, pollInterval time.Duration) error {
+	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
 	timeoutCh := time.After(timeout)
+
+	// Retained across ticks so the timeout message can report which nodes were
+	// still pending on the final observation.
+	var pending []string
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+
 		case <-timeoutCh:
-			return fmt.Errorf("timeout waiting for nodes to be ready after %v", timeout)
+			if len(pending) > 0 {
+				return fmt.Errorf("timeout after %v waiting for nodes to become ready: %s",
+					timeout, strings.Join(pending, ", "))
+			}
+			return fmt.Errorf("timeout after %v waiting for cluster nodes to register", timeout)
+
 		case <-ticker.C:
-			nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+			nodes, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 			if err != nil {
-				// Cluster might not be fully ready yet, continue polling
+				// The API server is typically unreachable for the first moments
+				// after creation; keep polling rather than failing the apply.
 				continue
 			}
 
 			if len(nodes.Items) == 0 {
-				// No nodes yet, continue polling
+				// Control plane is up but no node has registered yet.
 				continue
 			}
 
-			allReady := true
-			notReadyNodes := []string{}
-			for _, node := range nodes.Items {
-				nodeReady := false
-				for _, condition := range node.Status.Conditions {
-					if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
-						nodeReady = true
-						break
-					}
-				}
-				if !nodeReady {
-					allReady = false
-					notReadyNodes = append(notReadyNodes, node.Name)
-				}
-			}
-
-			if allReady {
+			pending = notReadyNodeNames(nodes.Items)
+			if len(pending) == 0 {
 				return nil
 			}
-			// Continue polling - some nodes are not ready yet
 		}
 	}
+}
+
+// notReadyNodeNames returns the names of nodes not reporting a true Ready
+// condition. A node with no Ready condition at all counts as not ready.
+func notReadyNodeNames(nodes []corev1.Node) []string {
+	var pending []string
+
+	for _, n := range nodes {
+		ready := false
+		for _, condition := range n.Status.Conditions {
+			if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+				ready = true
+				break
+			}
+		}
+		if !ready {
+			pending = append(pending, n.Name)
+		}
+	}
+
+	return pending
 }
 
 func (r *ClusterResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -155,8 +180,17 @@ func (r *ClusterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				},
 			},
 			"name": schema.StringAttribute{
-				Description: "The name of the cluster.",
-				Required:    true,
+				Description: "The name of the cluster. Must match `^[a-z0-9.-]+$`; kind prefixes and suffixes " +
+					"this value to derive Docker container names.",
+				Required: true,
+				Validators: []validator.String{
+					// Mirrors validNameRE in kind's own config validation so the
+					// provider never accepts a name kind will later reject.
+					stringvalidator.RegexMatches(
+						validClusterNameRE,
+						"cluster names must match `^[a-z0-9.-]+$` (lowercase letters, digits, dots and hyphens)",
+					),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -256,8 +290,11 @@ func (r *ClusterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Description: "Cluster networking configuration.",
 				Attributes: map[string]schema.Attribute{
 					"ip_family": schema.StringAttribute{
-						Description: "IP family for the cluster: ipv4, ipv6, or dual.",
+						Description: "IP family for the cluster. One of `ipv4`, `ipv6` or `dual`. Defaults to `ipv4`.",
 						Optional:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("ipv4", "ipv6", "dual"),
+						},
 						PlanModifiers: []planmodifier.String{
 							stringplanmodifier.RequiresReplace(),
 						},
@@ -298,8 +335,13 @@ func (r *ClusterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 						},
 					},
 					"kube_proxy_mode": schema.StringAttribute{
-						Description: "Kube-proxy mode: iptables, ipvs, or nftables.",
-						Optional:    true,
+						Description: "Kube-proxy mode. One of `iptables`, `ipvs`, `nftables` or `none`. " +
+							"Use `none` when the CNI replaces kube-proxy entirely (for example Cilium in " +
+							"kube-proxy-free mode).",
+						Optional: true,
+						Validators: []validator.String{
+							stringvalidator.OneOf("iptables", "ipvs", "nftables", "none"),
+						},
 						PlanModifiers: []planmodifier.String{
 							stringplanmodifier.RequiresReplace(),
 						},
@@ -354,8 +396,12 @@ func (r *ClusterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						"role": schema.StringAttribute{
-							Description: "Node role: control-plane or worker.",
-							Required:    true,
+							Description: "Node role. One of `control-plane` or `worker`. " +
+								"At least one `control-plane` node is required.",
+							Required: true,
+							Validators: []validator.String{
+								stringvalidator.OneOf("control-plane", "worker"),
+							},
 							PlanModifiers: []planmodifier.String{
 								stringplanmodifier.RequiresReplace(),
 							},
@@ -418,8 +464,12 @@ func (r *ClusterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 										},
 									},
 									"propagation": schema.StringAttribute{
-										Description: "Mount propagation: None, HostToContainer, or Bidirectional.",
-										Optional:    true,
+										Description: "Mount propagation. One of `None`, `HostToContainer` or " +
+											"`Bidirectional`. Case-sensitive.",
+										Optional: true,
+										Validators: []validator.String{
+											stringvalidator.OneOf("None", "HostToContainer", "Bidirectional"),
+										},
 										PlanModifiers: []planmodifier.String{
 											stringplanmodifier.RequiresReplace(),
 										},
@@ -453,8 +503,11 @@ func (r *ClusterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 										},
 									},
 									"protocol": schema.StringAttribute{
-										Description: "Protocol: TCP, UDP, or SCTP.",
+										Description: "Protocol. One of `TCP`, `UDP` or `SCTP`. Case-sensitive.",
 										Optional:    true,
+										Validators: []validator.String{
+											stringvalidator.OneOf("TCP", "UDP", "SCTP"),
+										},
 										PlanModifiers: []planmodifier.String{
 											stringplanmodifier.RequiresReplace(),
 										},
@@ -509,11 +562,11 @@ func (r *ClusterResource) Configure(_ context.Context, req resource.ConfigureReq
 		return
 	}
 
-	provider, ok := req.ProviderData.(*cluster.Provider)
+	provider, ok := req.ProviderData.(clusterManager)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *cluster.Provider, got: %T", req.ProviderData),
+			fmt.Sprintf("Expected a kind cluster provider, got: %T", req.ProviderData),
 		)
 		return
 	}

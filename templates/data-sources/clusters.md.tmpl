@@ -1,0 +1,24 @@
+---
+page_title: "{{ .Name }} {{ .Type }} - {{ .ProviderShortName }}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{ .Name }} ({{ .Type }})
+
+Lists the names of every KinD cluster on the machine, whether or not Terraform
+created them. This is the same set `kind get clusters` reports.
+
+Use it to make a configuration conditional on an existing cluster, or to assert
+in CI that a previous run cleaned up after itself.
+
+## Example Usage
+
+{{ tffile .ExampleFile }}
+
+-> The list reflects clusters present when the data source is read. Add an
+explicit `depends_on` when reading it in the same apply that creates a cluster,
+otherwise Terraform may read it before the cluster exists.
+
+{{ .SchemaMarkdown | trimspace }}

@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior <elioseverojunior@gmail.com>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+blank_issues_enabled: false
+contact_links:
+  - name: Question or usage help
+    url: https://github.com/elioseverojunior/terraform-provider-kind/discussions
+    about: Ask how to configure something, or share what you built.
+  - name: KinD itself
+    url: https://github.com/kubernetes-sigs/kind/issues
+    about: Cluster creation problems that also happen with the kind CLI belong upstream.
+  - name: Security vulnerability
+    url: https://github.com/elioseverojunior/terraform-provider-kind/security/advisories/new
+    about: Report privately. Please do not open a public issue.

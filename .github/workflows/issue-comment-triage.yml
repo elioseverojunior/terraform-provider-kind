@@ -2,24 +2,48 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-# DO NOT EDIT - This GitHub Workflow is managed by automation
-# https://github.com/hashicorp/terraform-devex-repos
+# Clears the waiting-response label once someone actually responds.
+#
+# A maintainer applies waiting-response when an issue or pull request needs
+# information from its author. This removes it again on the next human comment,
+# so the label always reflects who is currently blocked.
 name: Issue Comment Triage
 
 on:
   issue_comment:
     types: [created]
 
+# The default token is read-only in repositories configured that way, and this
+# job has to write a label, so the permission is requested explicitly.
+permissions:
+  issues: write
+  pull-requests: write
+
 jobs:
-  issue_comment_triage:
+  remove-waiting-response:
+    name: Remove waiting-response
     runs-on: ubuntu-latest
-    env:
-      # issue_comment events are triggered by comments on issues and pull requests. Checking the
-      # value of github.event.issue.pull_request tells us whether the issue is an issue or is
-      # actually a pull request, allowing us to dynamically set the gh subcommand:
-      # https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#issue_comment-on-issues-only-or-pull-requests-only
-      COMMAND: ${{ github.event.issue.pull_request && 'pr' || 'issue' }}
-      GH_TOKEN: ${{ github.token }}
+
+    # Only run when there is something to remove. `gh ... --remove-label` exits
+    # non-zero if the label is not present, so an unguarded run fails on every
+    # comment that is not answering a maintainer's question.
+    #
+    # Bot comments are ignored: Dependabot describing its own update does not
+    # mean a human has responded.
+    if: >-
+      contains(github.event.issue.labels.*.name, 'waiting-response') &&
+      github.event.comment.user.type != 'Bot'
+
     steps:
-      - name: 'Remove waiting-response on comment'
-        run: gh ${{ env.COMMAND }} edit ${{ github.event.issue.html_url }} --remove-label waiting-response
+      - name: Remove waiting-response
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # issue_comment fires for both issues and pull requests. The presence
+          # of github.event.issue.pull_request distinguishes them and selects
+          # the matching gh subcommand.
+          COMMAND: ${{ github.event.issue.pull_request && 'pr' || 'issue' }}
+          # Passed through the environment rather than interpolated into the
+          # run script, so no field of the event payload is ever evaluated as
+          # shell.
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+        run: gh "$COMMAND" edit "$ISSUE_URL" --remove-label waiting-response

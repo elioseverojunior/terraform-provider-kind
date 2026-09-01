@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior <elioseverojunior@gmail.com>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 *.dll
 *.exe
 .DS_Store
@@ -24,14 +28,22 @@ website/node_modules
 *.iml
 *.test
 *.iml
-
 website/vendor
 
 # Keep windows files with windows line endings
 *.winfile eol=crlf
-
 /**/.terraform/
 /**/.terraform.lock.hcl*
 /**/.terraform.tfstate*
 /**/terraform.tfstate*
 /**/terraform-provider-kind
+
+# Test coverage artefacts produced by `make test-coverage`.
+coverage.out
+coverage.html
+
+# Machine-specific Terraform state from running the examples locally.
+examples/**/.terraform/
+examples/**/.terraform.lock.hcl
+examples/**/terraform.tfstate
+examples/**/terraform.tfstate.backup

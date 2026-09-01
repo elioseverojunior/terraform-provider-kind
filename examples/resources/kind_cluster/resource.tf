@@ -14,7 +14,7 @@ resource "kind_cluster" "basic" {
 # Cluster with specific Kubernetes version
 resource "kind_cluster" "versioned" {
   name       = "versioned-cluster"
-  node_image = "kindest/node:v1.34.0"
+  node_image = "kindest/node:v1.37.0"
 
   node {
     role = "control-plane"

@@ -1,0 +1,73 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior <elioseverojunior@gmail.com>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+name: Bug report
+description: Something the provider does is wrong or fails unexpectedly.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing, please confirm the same thing works with the `kind` CLI.
+        If `kind create cluster` fails the same way, the issue belongs in
+        [kubernetes-sigs/kind](https://github.com/kubernetes-sigs/kind).
+
+  - type: input
+    id: provider-version
+    attributes:
+      label: Provider version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: terraform-version
+    attributes:
+      label: Terraform / OpenTofu version
+      description: Output of `terraform version`.
+      placeholder: "Terraform v1.9.0"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS and container runtime
+      description: Output of `docker version --format '{{.Server.Version}}'` and your OS.
+      placeholder: "macOS 15 arm64, Docker Desktop 27.3.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Terraform configuration
+      description: The smallest configuration that reproduces the problem.
+      render: terraform
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: Include the error output. Re-run with `TF_LOG=DEBUG` if the message is not self-explanatory.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Whether it worked in an earlier version, whether it reproduces every time, relevant `kind export logs` output.
+    validations:
+      required: false

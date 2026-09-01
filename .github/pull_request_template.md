@@ -1,16 +1,33 @@
-## Related Issue
+<!--
+SPDX-FileCopyrightText: 2026 Elio Severo Junior <elioseverojunior@gmail.com>
 
-Fixes # <!-- INSERT ISSUE NUMBER -->
+SPDX-License-Identifier: MIT OR Apache-2.0
+-->
 
-## Description
+## What does this change?
 
-In plain English, describe your approach to addressing the issue linked above. For example, if you made a particular design decision, let us know why you chose this path instead of another solution.
+<!-- Describe the change and, briefly, why this approach. -->
 
-<!-- heimdall_github_prtemplate:grc-pci_dss-2024-01-05 -->
-## Rollback Plan
+## Related issue
 
-- [ ] If a change needs to be reverted, we will roll out an update to the code within 7 days.
+<!-- "Fixes #123", or "None" for small fixes. -->
 
-## Changes to Security Controls
+## Type of change
 
-Are there any changes to security controls (access controls, encryption, logging) in this pull request? If so, explain.
+- [ ] Bug fix (no breaking change)
+- [ ] New feature (no breaking change)
+- [ ] Breaking change (existing configurations behave differently)
+- [ ] Documentation only
+
+## Impact on existing configurations
+
+<!-- For schema or behaviour changes: what happens on the next plan for someone
+     already using this provider? Write "None" if nothing changes. -->
+
+## Checklist
+
+- [ ] `make test` passes
+- [ ] `make lint` reports 0 issues
+- [ ] `make generate` was run and `docs/` is committed (required for schema changes)
+- [ ] New behaviour is covered by tests
+- [ ] `CHANGELOG.md` updated under `## [Unreleased]`

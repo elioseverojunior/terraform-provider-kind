@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2026 Elio Severo Junior <elioseverojunior@gmail.com>
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+name: Feature request
+description: Suggest a capability the provider does not have yet.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the goal, not just the proposed solution. There may be an existing way to get there.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed configuration
+      description: Show what you would like to write in Terraform.
+      render: terraform
+    validations:
+      required: false
+
+  - type: input
+    id: kind-support
+    attributes:
+      label: Does kind support this already?
+      description: Link to the kind documentation or config field, if there is one. The provider can only expose what kind implements.
+      placeholder: "https://kind.sigs.k8s.io/docs/user/configuration/#..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Current workaround
+      description: How are you handling this today?
+    validations:
+      required: false

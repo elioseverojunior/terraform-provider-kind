@@ -1,0 +1,54 @@
+---
+page_title: "{{ .Name }} {{ .Type }} - {{ .ProviderShortName }}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{ .Name }} ({{ .Type }})
+
+Manages the full lifecycle of a KinD cluster: the Docker containers that back
+each node, the Kubernetes control plane running inside them, and the kubeconfig
+credentials needed to reach it.
+
+~> **Clusters are immutable.** kind cannot add, remove or reconfigure nodes on a
+running cluster. Every argument except `wait_for_ready` and
+`wait_for_nodes_ready` is marked `RequiresReplace`, so changing one destroys and
+recreates the cluster — and everything deployed inside it.
+
+## Example Usage
+
+{{ tffile .ExampleFile }}
+
+## Node topology
+
+Omitting `node` blocks entirely creates the kind default: one `control-plane`
+node and one `worker`. Declaring any `node` block replaces that default, so a
+configuration with a single `worker` block and no `control-plane` is invalid and
+kind will reject it.
+
+Declaring more than one `control-plane` node produces a highly available
+cluster; kind adds an external load balancer container in front of them
+automatically.
+
+## Waiting for readiness
+
+`wait_for_ready` bounds how long the provider waits, in seconds. It covers two
+distinct phases:
+
+1. kind's own wait for the control plane to respond.
+2. The provider's wait for every node to report `Ready`, performed only when
+   `wait_for_nodes_ready` is `true` (the default).
+
+Set `wait_for_nodes_ready = false` when installing a CNI yourself with
+`disable_default_cni = true` — nodes stay `NotReady` until that CNI is running,
+which cannot happen until after `terraform apply` returns.
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Import an existing cluster by its name. Only `name` is imported; every other
+attribute is re-read from kind and the live kubeconfig on the next refresh.
+
+{{ codefile "shell" .ImportFile }}

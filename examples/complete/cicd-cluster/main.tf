@@ -1,7 +1,7 @@
 # KinD Clusters
 resource "kind_cluster" "cluster" {
   name       = var.kind_cluster.name
-  node_image = "kindest/node:v1.34.0" # Use recent stable image compatible with kind CLI
+  node_image = "kindest/node:v1.37.0" # Use recent stable image compatible with kind CLI
 
   containerd_config_patches = flatten([
     # Base registry config
